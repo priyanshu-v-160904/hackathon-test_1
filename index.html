@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Teacher Timetable (2-file version)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --txt:#1f2937; --muted:#6b7280; --accent:#2563eb; --bad:#b91c1c; --ok:#059669; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--txt); background:var(--bg); }
+    header{ display:flex; gap:12px; align-items:center; justify-content:space-between; padding:16px 20px; background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:5;}
+    h1{ font-size:18px; margin:0; }
+    .container{ max-width:1200px; margin:20px auto; padding:0 16px; display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media(min-width:1000px){ .container{ grid-template-columns: 1.2fr 1fr; } }
+    .card{ background:var(--card); border:1px solid #e5e7eb; border-radius:14px; padding:14px; }
+    .title{ font-weight:600; margin:0 0 10px; }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input,select,button,textarea{ border:1px solid #d1d5db; border-radius:10px; padding:8px 10px; background:#fff; }
+    input[type="number"]{ width:110px; }
+    button{ cursor:pointer; background:var(--accent); color:#fff; border:none; }
+    button.secondary{ background:#111827; }
+    button.ghost{ background:#f3f4f6; color:#111; border:1px solid #e5e7eb; }
+    button.red{ background:var(--bad); }
+    button.green{ background:var(--ok); }
+    table{ border-collapse:collapse; width:100%; }
+    th, td{ border:1px solid #e5e7eb; padding:6px 8px; vertical-align:top; }
+    th{ background:#f9fafb; text-align:left; }
+    .small{ font-size:12px; color:var(--muted); }
+    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; border:1px solid #e5e7eb; margin:2px; }
+    .gridWrap{ overflow:auto; max-height:70vh; }
+    .muted{ color:var(--muted); }
+    .bad{ color:var(--bad); }
+    .ok{ color:var(--ok); }
+    .avail-btn{ padding:4px 6px; font-size:12px; border-radius:8px; border:1px solid #d1d5db; }
+    .avail-on{ background:#dcfce7; border-color:#bbf7d0; }
+    .avail-off{ background:#fee2e2; border-color:#fecaca; }
+    .section{ display:grid; gap:12px; }
+    .cols{ display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
+    .cols3{ display:grid; gap:10px; grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 800px){ .cols, .cols3{ grid-template-columns: 1fr; } }
+    .footer{ display:flex; gap:8px; justify-content:flex-end; }
+    .code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background:#f8fafc; border:1px solid #e5e7eb; padding:8px; border-radius:8px; }
+  </style>
+  <script src="script.js"></script>
+  <link rel="stylesheet" href="style.css">
+
+
+</head>
+<body>
+  <header>
+    <h1>Teacher Timetable</h1>
+    <div class="row">
+      <button id="btnExport" class="ghost">Export JSON</button>
+      <label class="ghost" style="padding:6px 10px; display:inline-flex; align-items:center; gap:8px;">
+        Import <input id="importFile" type="file" accept="application/json" style="display:none">
+      </label>
+      <button id="btnSeed" class="secondary">Seed Demo</button>
+      <button id="btnClear" class="red">Clear All</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- LEFT: data + constraints -->
+    <div class="section">
+      <div class="card">
+        <div class="title">Global Config</div>
+        <div class="cols">
+          <label>Periods / Day<br><input type="number" id="cfgPeriods" value="6" min="1" max="12"></label>
+          <label>Days / Week<br><input type="number" id="cfgDays" value="6" min="1" max="7"></label>
+          <label>Lunch at period index (optional)<br><input type="number" id="cfgLunch" value="3" min="-1" max="12"></label>
+          <label>Week Start (Mon)<br><input type="date" id="cfgWeekStart"></label>
+        </div>
+        <div class="footer">
+          <span class="small muted" id="cfgMsg"></span>
+          <button id="btnSaveCfg" class="green">Save Config</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="title">Teachers</div>
+        <div class="cols">
+          <label>Name<br><input id="tName" placeholder="Alice"></label>
+          <label>Code<br><input id="tCode" placeholder="T-A"></label>
+          <label>Max / Day<br><input type="number" id="tMaxDay" value="4"></label>
+          <label>Max / Week<br><input type="number" id="tMaxWeek" value="18"></label>
+          <label><input type="checkbox" id="tAvoid" checked> Avoid consecutive</label>
+        </div>
+        <div class="footer">
+          <button id="btnAddTeacher">Add Teacher</button>
+        </div>
+        <div id="teacherList" class="small" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Subjects</div>
+        <div class="row">
+          <input id="sName" placeholder="Mathematics">
+          <input id="sCode" placeholder="MATH">
+          <button id="btnAddSubject">Add Subject</button>
+        </div>
+        <div id="subjectList" class="small" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Classes & Weekly Subject Loads</div>
+        <div class="row">
+          <input id="cName" placeholder="Class A">
+          <button id="btnAddClass">Add Class</button>
+        </div>
+        <div class="row">
+          <select id="loadClass"></select>
+          <select id="loadSubject"></select>
+          <input type="number" id="loadPPW" value="3" min="1">
+          <button id="btnAddLoad">Add Load</button>
+        </div>
+        <div id="classList" class="small" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Who can teach which subject</div>
+        <div class="row">
+          <select id="tsTeacher"></select>
+          <select id="tsSubject"></select>
+          <button id="btnAddTS">Allow</button>
+        </div>
+        <div id="teachSkill" class="small" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Teacher Availability (click to toggle)</div>
+        <div class="row small muted">Defaults to available everywhere except lunch break.</div>
+        <div id="availabilityGrid" class="gridWrap" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="title">Generate Timetable</div>
+        <div class="row small">
+          <label><input type="checkbox" id="hDouble" checked> Hard: no double-booking</label>
+          <label><input type="checkbox" id="hAvail" checked> Hard: honor availability</label>
+          <label><input type="checkbox" id="sConsec" checked> Soft: avoid consecutive</label>
+          <label><input type="checkbox" id="sBalance" checked> Soft: balance teacher load</label>
+        </div>
+        <div class="footer">
+          <span id="schedMsg" class="small"></span>
+          <button id="btnSchedule">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Timetable -->
+    <div class="card">
+      <div class="title">Weekly Timetable</div>
+      <div id="gridWrap" class="gridWrap"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
